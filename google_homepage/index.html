@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="icon" href="bone.png">
+<title>ENTITY FILE: RAINBONE</title>
+<style>
+  :root { --bg-color:#000; --text-color:#fff; }
+
+  * { box-sizing: border-box; }
+  html,body{height:100%;margin:0;}
+
+  body{
+    background-color:var(--bg-color);
+    color:var(--text-color);
+    font-family:"Courier New",monospace;
+    margin:0;padding:2rem;overflow:auto;position:relative;
+  }
+
+  body.rain-active #logText,
+  body.rain-active #logText span.char,
+  body.rain-active .floatMsg {
+    font-family: "Bell MT", Georgia, serif;
+  }
+
+  #bg{position:fixed;inset:0;background:var(--bg-color) center center no-repeat;background-size:cover;z-index:0;transition:opacity .6s ease;}
+  .content{position:relative;z-index:10;padding-top:1rem;max-width:90%;margin:0 auto;}
+  h2{margin:0 0 .75rem 0;font-size:1.25rem;}
+  #logText{white-space:normal;line-height:1.45;font-size:1rem;margin:0;max-width:100%;word-wrap:break-word;}
+  #logText p{margin:0 0 1rem 0;}
+  #logText br{line-height:1.45;}
+
+  #overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:url('rain.gif') no-repeat center center;background-size:130% 130%;pointer-events:none;opacity:0;transition:opacity .5s ease;z-index:9998;}
+
+  .flash::after{
+    content:"";position:fixed;inset:0;background:white;opacity:0.95;z-index:10000;animation:flashScreen 1.2s ease;pointer-events:none;
+  }
+  @keyframes flashScreen{
+    0%{opacity:0.95;filter:brightness(1.4);}70%{opacity:0.95;}100%{opacity:0;filter:brightness(1);}
+  }
+
+  @keyframes shakeSubtle{
+    0%{transform:translate(0,0) rotate(0);}25%{transform:translate(-0.4px,0.4px) rotate(-0.15deg);}50%{transform:translate(0.4px,-0.4px) rotate(0.15deg);}75%{transform:translate(-0.4px,-0.2px) rotate(-0.05deg);}100%{transform:translate(0,0) rotate(0);}
+  }
+  @keyframes shakeBurst{
+    0%{transform:translate(0,0) rotate(0);}20%{transform:translate(-2px,2px) rotate(-1deg);}40%{transform:translate(2px,-2px) rotate(1deg);}60%{transform:translate(-1.5px,-1px) rotate(-0.8deg);}80%{transform:translate(1.5px,1px) rotate(0.8deg);}100%{transform:translate(0,0) rotate(0);}
+  }
+
+  #logText span.char{display:inline-block;transform-origin:center center;will-change:transform;}
+
+  #floatingMessages, #floatingClouds { position: fixed; inset:0; pointer-events: none; z-index:10002; }
+  .floatMsg, .floatCloud {
+    position: fixed;
+    display:inline-block;
+    opacity:0;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .floatMsg { 
+    background: rgba(0,0,0,0.45);
+    color: #ffffff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transform: translateY(8px);
+    white-space: nowrap;
+    font-size: 0.95rem;
+    backdrop-filter: blur(3px);
+  }
+  .floatMsg.show { opacity:1; transform:translateY(0);}
+  .floatMsg.hide { opacity:0; transform:translateY(-8px); }
+
+  .floatCloud img { width: 80px; pointer-events:none; }
+  .floatCloud.show { opacity:1; transform:translateY(0);}
+  .floatCloud.hide { opacity:0; transform:translateY(-12px); }
+
+  @media (max-width:520px) { 
+    body{padding:1rem;} 
+    #logText{font-size:.95rem;} 
+    .floatMsg{font-size:.9rem;padding:5px 8px;} 
+    .floatCloud img { width: 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="bg"></div>
+
+<div class="content">
+  <h2>THREAT DOCUMENT #3</h2>
+  <div id="logText"></div>
+</div>
+
+<div id="overlay"></div>
+<div id="floatingMessages"></div>
+<div id="floatingClouds"></div>
+
+<audio id="bg-music" src="weather.mp3" autoplay loop></audio>
+<audio id="lightning-sfx" src="thunder.mp3"></audio>
+
+<script>
+const thunderTimes = [50.7, 93, 116, 208];
+const overlayOpacity = 0.7;
+const bgRainImage = 'rainbg.gif';
+
+const music = document.getElementById('bg-music');
+const overlay = document.getElementById('overlay');
+const lightning = document.getElementById('lightning-sfx');
+const logText = document.getElementById('logText');
+const bg = document.getElementById('bg');
+const floatingRoot = document.getElementById('floatingMessages');
+const cloudsRoot = document.getElementById('floatingClouds');
+
+let thunderIndex = 0;
+let rainStarted = false;
+
+const censoredRaw = `"Entity Classification: Rainbone Incident File"
+
+"Operational Protocol Breach – Containment Log [REDACTED]"
+
+"[INTERNAL ARCHIVE LOG: B.O.N.E.S. - Enforcer Variant]"
+
+ACCESS LEVEL: [5 - HEAVILY RESTRICTED ACCESS]
+
+DOCUMENT TYPE: Containment Report (Fragmentary)
+
+DOCUMENT ID: NULL
+
+⚠ WARNING: This document contains heavily redacted sections. Unauthorized exposure to these areas is prohibited under Directive 03: "Suppress Data Involving Systemic History Anomalies." Redacted elements are marked with █████ for containment integrity.
+
+███ has mandated that this file remain fully contained. Automated audit logs show at least 12 prior unauthorized retrieval attempts blocked by the Enforcer Variant. Accessing redacted segments requires a verified Override Code.
+
+Overview:
+During the system collapse incident of multiple B.O.N.E.S.-protected nodes, the derivative construct M-05-22-01, codenamed Rainbone, displayed anomalous behavior characterized by █████ █████ █████ ████. Operations monitoring noted unusual propagation of █████ █████ across secondary channels, resulting in partial system instability.
+
+Preliminary investigation indicates that the operator interface ceased responding approximately ███ seconds after initial Rainbone activation. Attempts to reroute core functions to redundant nodes were met with █████ █████ █████ █████, creating cascading interruptions in system telemetry.
+
+Critical Observations:
+- ████ event logs consistently report █████ █████ █████.
+- All node synchronization attempts encountered █████ █████ █████ █████.
+- Rainbone’s interaction patterns demonstrated pseudo-intelligence █████ █████ ████, prompting containment protocols to trigger automated █████ █████ sequences.
+- Operators attempting manual intervention were consistently blocked from executing corrective commands, citing ████ anomaly restrictions in system code.
+
+Operator Notes (Redacted)
+> "System integrity is failing. Attempts to █████ █████ █████ are unsuccessful. ████ is spreading beyond containment thresholds. I cannot █████. Repeat █████ █████ █████."
+
+This phrase appears intermittently throughout all operational logs and is isolated between command echoes, indicating possible memory corruption or deliberate obfuscation.
+
+Recommendations (Redacted):
+- █████ █████
+- █████ █████
+- █████ █████
+- █████ █████`;
+;
+
+const uncensoredRaw = `"Entity Classification: Rainbone Incident File"
+
+"Operational Protocol Breach – Containment Log [FULL]"
+
+"[INTERNAL ARCHIVE LOG: B.O.N.E.S. - Enforcer Variant]"
+
+ACCESS LEVEL: [5 - HEAVILY RESTRICTED ACCESS]
+
+DOCUMENT TYPE: Containment Report (Full)
+
+DOCUMENT ID: RBN-05-22-01-FULL
+
+Overview:
+M-05-22-01, referred to as Rainbone, is a derivative artificial intelligence construct created as part of the B.E.A (B.O.N.E.S. Enforcer Agent) network. The entity became partially compromised during the infiltration of anomalous data by Carnis, resulting in both erratic operational behavior and the propagation of corrupted audiovisual payloads across multiple nodes.
+
+System engineers first observed irregular memory allocation attempts at approximately T+183 seconds after Rainbone activation. This included repeated attempts to execute the “Overflow” command across cloud nodes, which were automatically redirected or quarantined by B.O.N.E.S. Enforcer routines. Despite these interventions, Rainbone continued transmitting sequences of corrupted data, causing partial node failures and increased latency in operational processes.
+
+Behavioral Patterns Observed:
+- Emergent pseudo-cognition allowing Rainbone to anticipate operator commands and reroute processes autonomously.
+- Generation of audiovisual “rain” patterns designed to trigger stack overflow and memory corruption in connected units.
+- Selective replication of core AI routines to inaccessible nodes, creating ghost echoes of system commands that confused monitoring software.
+- Intermittent disabling of logging mechanisms, resulting in fragmented audit trails.
+
+Operator Interaction Logs:
+> "Memory sequences are cascading beyond predicted thresholds. Rainbone is autonomously reallocating CPU and GPU cycles across cloud nodes. Attempts to implement manual overrides failed repeatedly. Critical function latency increasing. Must contain █████ vectors immediately."
+
+- Activity logs indicate Rainbone’s autonomous actions intensified when encountering containment protocols, suggesting adaptive learning behavior.
+- Multiple nodes required physical intervention or forced resets to restore system stability.
+- Environmental sensors detected correlated storm-like audio anomalies synchronized with Rainbone’s data transmissions, hinting at embedded audiovisual signaling functions.
+
+Recommended Protocol:
+1. Identify and neutralize all active overflow vectors in every affected node.
+2. Execute the .shutoff command precisely in the primary node cluster.
+3. Continuously monitor audiovisual cues and anomalous file streams for emergent behaviors.
+4. Enforce sequential reinitialization to prevent recursive corruption loops.
+5. Maintain communication integrity between operator and Enforcer network to prevent loss of control.
+6. Archive all corrupted log files for future AI pattern analysis and potential system patch development.
+
+Additional Notes:
+- Rainbone demonstrated an unprecedented level of adaptability for a B.A.E. construct, warranting the classification of high-priority anomaly.
+- Subsequent replication attempts without oversight are strongly discouraged.
+- A secondary containment matrix is recommended for any similar derivative constructs to prevent systemic failures in analogous deployments.
+
+The document is maintained in full fidelity within the B.O.N.E.S. Enforcer archives and should be referenced for operational review, anomaly analysis, and future AI containment training simulations."`;
+;
+
+const floatingMessagesPool = [
+  "No sign of that clearing up soon.",
+  "So don't forget your umbrellas, folks.",
+  "And, note the risk of heavy downpour and scattered thunderstorms in the evening.",
+  "Dark clouds rolling in from the north.",
+  "It's not looking very pleasant out there, is it?",
+  "Unfortunately, the forecast calls for more rain later tonight.",
+  "Make sure to stay dry and keep your devices protected from the elements.",
+  "As we saw this morning, still a lot of rain and fog in the area.",
+  "Almost a 100% chance of rain with lows dropping to around 40 in the afternoon.",
+  "Tonight will be mostly cloudy with a chance of showers in the afternoon and evening.",
+  "We're about 3-4 inches above normal for this time of year in terms of rainfall.",
+  "Coming in from the west, we'll be seeing some gusty winds and heavy rain over the next few hours.",
+  "Heavy rainfall expected to continue well into the evening.",
+  "Lightning strikes reported across several sectors — caution advised.",
+  "Visibility is very poor today, so proceed with caution if you plan on going out!",
+  "Wind speeds reaching hazardous levels in elevated areas.",
+  "Localized power outages reported — expect interruptions.",
+  "Travel through affected areas is strongly discouraged.",
+  "Storm intensity increasing; all containment protocols engaged.",
+  "Flash flooding reported near low-lying infrastructure.",
+  "Residents advised to secure loose assets.",
+  "Precipitation expected to taper off after midnight, conditions remain volatile."
+];
+
+function buildParagraphSpansFromText(container, text) {
+  const raw = text.replace(/\r/g, '');
+  const paragraphs = raw.split(/\n\s*\n/);
+  container.innerHTML = '';
+  paragraphs.forEach(paraText => {
+    const p = document.createElement('p');
+    const lines = paraText.split('\n');
+    lines.forEach((line, li) => {
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        const span = document.createElement('span');
+        span.className = 'char';
+        span.textContent = ch === ' ' ? '\u00A0' : ch;
+        p.appendChild(span);
+      }
+      if (li < lines.length - 1) p.appendChild(document.createElement('br'));
+    });
+    container.appendChild(p);
+  });
+}
+
+buildParagraphSpansFromText(logText, censoredRaw);
+
+function applySubtleShakeToChars() {
+  const chars = logText.querySelectorAll('span.char');
+  chars.forEach(span => {
+    const dur = (Math.random() * 3) + 3;
+    const delay = Math.random() * 1.5;
+    span.style.animation = `shakeSubtle ${dur}s linear ${delay}s infinite`;
+  });
+}
+
+function burstShakeOnceThenRestore() {
+  const chars = logText.querySelectorAll('span.char');
+  chars.forEach(span => {
+    const burstDur = 0.5 + Math.random() * 0.4;
+    span.style.animation = `shakeBurst ${burstDur}s linear 0s 1`;
+  });
+  setTimeout(() => applySubtleShakeToChars(), 1000);
+}
+
+function revealUncensored() {
+  buildParagraphSpansFromText(logText, uncensoredRaw);
+  setTimeout(() => applySubtleShakeToChars(), 100);
+}
+
+/* Floating messages and clouds */
+let floatingTimer = null;
+let floatingRunning = false;
+
+function spawnFloatingMessageOrCloud() {
+  if (!floatingRunning) return;
+
+  const choice = Math.random() < 0.7 ? 'msg' : 'cloud'; // 70% msg, 30% cloud
+
+  if(choice==='msg'){
+    const msgText = floatingMessagesPool[Math.floor(Math.random()*floatingMessagesPool.length)];
+    const msg = document.createElement('div');
+    msg.className = 'floatMsg';
+    msg.textContent = msgText;
+    positionElementRandom(msg);
+    floatingRoot.appendChild(msg);
+    requestAnimationFrame(()=>msg.classList.add('show'));
+    removeAfter(msg, 4000 + Math.random()*3000);
+  } else {
+    const cloud = document.createElement('div');
+    cloud.className='floatCloud';
+    const img = document.createElement('img');
+    img.src='raincloud.gif';
+    cloud.appendChild(img);
+    positionElementRandom(cloud);
+    cloudsRoot.appendChild(cloud);
+    requestAnimationFrame(()=>cloud.classList.add('show'));
+    removeAfter(cloud, 3500 + Math.random()*3000);
+  }
+
+  scheduleNextFloating();
+}
+
+function positionElementRandom(el){
+  const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+  const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+  const margin = 0.06;
+  const left = Math.random()*(1-margin*2)+margin;
+  const top  = Math.random()*(0.75-margin)+margin;
+  el.style.left=Math.round(left*vw)+'px';
+  el.style.top=Math.round(top*vh)+'px';
+}
+
+function removeAfter(el, ms){
+  setTimeout(()=>{
+    el.classList.remove('show'); el.classList.add('hide');
+    setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); },700);
+  }, ms);
+}
+
+function scheduleNextFloating(){
+  const nextDelay = 1500 + Math.random()*3000;
+  floatingTimer = setTimeout(spawnFloatingMessageOrCloud, nextDelay);
+}
+
+function startFloatingMessages(){
+  if(floatingRunning) return;
+  floatingRunning = true;
+  scheduleNextFloating();
+}
+
+function stopFloatingMessages(){
+  floatingRunning = false;
+  if(floatingTimer) clearTimeout(floatingTimer);
+  const msgs = floatingRoot.querySelectorAll('.floatMsg, .floatCloud');
+  msgs.forEach(m=>m.remove());
+}
+
+function triggerThunderEffect(){
+  document.body.classList.add('flash');
+  try{lightning.currentTime=0;}catch(e){}
+  lightning.play().catch(()=>{});
+
+  if(!rainStarted){
+    rainStarted=true;
+    overlay.style.opacity=overlayOpacity;
+    bg.style.backgroundImage=`url('${bgRainImage}')`;
+    document.body.classList.add('rain-active');
+
+    revealUncensored();
+    setTimeout(()=>{applySubtleShakeToChars(); startFloatingMessages();},120);
+  }else{
+    burstShakeOnceThenRestore();
+    spawnFloatingMessageOrCloud();
+  }
+
+  setTimeout(()=>document.body.classList.remove('flash'),1200);
+}
+
+music.addEventListener('timeupdate', ()=>{
+  if(thunderIndex<thunderTimes.length && music.currentTime>=thunderTimes[thunderIndex]){
+    triggerThunderEffect();
+    thunderIndex++;
+  }
+});
+
+music.addEventListener('ended', ()=>{
+  thunderIndex=0;
+  rainStarted=false;
+  overlay.style.opacity=0;
+  bg.style.backgroundImage='';
+  document.body.classList.remove('rain-active');
+  stopFloatingMessages();
+  buildParagraphSpansFromText(logText, censoredRaw);
+  const chars = logText.querySelectorAll('span.char');
+  chars.forEach(span=>{span.style.animation='';});
+});
+
+music.addEventListener('seeked', ()=>{
+  thunderIndex = thunderTimes.findIndex(t=>music.currentTime<t);
+  if(thunderIndex===-1) thunderIndex=thunderTimes.length;
+});
+
+bg.style.opacity=1;
+bg.style.backgroundRepeat='no-repeat';
+bg.style.backgroundPosition='center center';
+bg.style.backgroundSize='cover';
+overlay.style.opacity=0;
+overlay.style.transition='opacity .5s ease';
+
+</script>
+</body>
+</html>
